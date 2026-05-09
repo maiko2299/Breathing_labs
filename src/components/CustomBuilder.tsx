@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { BreathingPhase } from "@/components/ui/BreathingCircle";
-import { Protocol } from "@/app/page";
+import { Protocol } from "@/app/breathe/page";
 
 export const CustomBuilder: React.FC<{ 
   onSave: (protocol: Protocol) => void,

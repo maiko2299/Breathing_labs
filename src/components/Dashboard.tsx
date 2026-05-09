@@ -1,6 +1,7 @@
 import React from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { Protocol } from "@/app/breathe/page";
 
 interface SessionData {
   id: number;
