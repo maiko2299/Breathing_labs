@@ -112,6 +112,11 @@ export default function Home() {
   const [moodRating, setMoodRating] = useState<number | null>(null);
   const [sessionNotes, setSessionNotes] = useState<string>("");
 
+  // Phase Timer State
+  const [phaseStartTime, setPhaseStartTime] = useState<number>(0);
+  const [elapsedTimeMs, setElapsedTimeMs] = useState<number>(0);
+  const [recordedHolds, setRecordedHolds] = useState<number[]>([]);
+
   // Refs for timer
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -161,6 +166,9 @@ export default function Home() {
     setSessionStartTime(Date.now());
     setCompletedCycles(0);
     setCurrentPhaseIndex(0);
+    setRecordedHolds([]);
+    setPhaseStartTime(Date.now());
+    setElapsedTimeMs(0);
     setIsActive(true);
     setView("active");
   };
@@ -172,16 +180,32 @@ export default function Home() {
     setView("complete");
   };
 
+  const handleTogglePause = () => {
+    if (isActive) {
+      setIsActive(false);
+    } else {
+      setPhaseStartTime(Date.now() - elapsedTimeMs);
+      setIsActive(true);
+    }
+  };
+
   const handleSkipPhase = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (!selectedProtocol) return;
     
+    const currentPhaseData = selectedProtocol.phases[currentPhaseIndex];
+    if (currentPhaseData.isDynamicHold) {
+      setRecordedHolds(prev => [...prev, Math.floor(elapsedTimeMs / 1000)]);
+    }
+
     let nextIndex = currentPhaseIndex + 1;
     if (nextIndex >= selectedProtocol.phases.length) {
       nextIndex = 0;
       setCompletedCycles((prev) => prev + 1);
     }
     setCurrentPhaseIndex(nextIndex);
+    setPhaseStartTime(Date.now());
+    setElapsedTimeMs(0);
   };
 
   const handleSaveAndHome = () => {
@@ -225,12 +249,26 @@ export default function Home() {
         setCompletedCycles((prev) => prev + 1);
       }
       setCurrentPhaseIndex(nextIndex);
+      setPhaseStartTime(Date.now());
+      setElapsedTimeMs(0);
     }, currentPhaseData.durationMs);
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, [isActive, currentPhaseIndex, selectedProtocol]);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isActive && phaseStartTime > 0) {
+      interval = setInterval(() => {
+        setElapsedTimeMs(Date.now() - phaseStartTime);
+      }, 100);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isActive, phaseStartTime]);
 
   // --- RENDER VIEWS ---
   const renderWelcome = () => (
@@ -355,7 +393,10 @@ export default function Home() {
               <p className="text-primary font-bold mt-2 text-xl tracking-widest">BREATH {currentPhaseData.showBreathCount} / 11</p>
             )}
             {currentPhaseData.isDynamicHold && (
-              <div className="mt-8 animate-in fade-in zoom-in duration-700">
+              <div className="mt-8 flex flex-col items-center gap-6 animate-in fade-in zoom-in duration-700">
+                <div className="text-4xl font-mono text-primary font-light">
+                  {Math.floor(elapsedTimeMs / 1000)}s
+                </div>
                 <Button 
                   onClick={handleSkipPhase} 
                   className="bg-primary/20 text-primary hover:bg-primary hover:text-background border border-primary/50 px-8 py-4 text-lg font-bold shadow-[0_0_15px_rgba(56,189,248,0.3)] transition-all duration-300"
@@ -368,13 +409,27 @@ export default function Home() {
         )}
 
         <div className="mt-8 space-x-4">
-          <Button variant={isActive ? "secondary" : "primary"} onClick={() => setIsActive(!isActive)}>
+          <Button variant={isActive ? "secondary" : "primary"} onClick={handleTogglePause}>
             {isActive ? "Pause Session" : "Resume Session"}
           </Button>
           <Button variant="ghost" onClick={handleEndSession}>
             End Session
           </Button>
         </div>
+
+        {recordedHolds.length > 0 && (
+          <div className="mt-8 lg:absolute lg:left-8 lg:top-1/2 lg:-translate-y-1/2 bg-black/20 p-4 rounded-xl border border-card-border/50 min-w-[150px] animate-in fade-in">
+            <h4 className="text-sm uppercase tracking-wider text-primary mb-3 border-b border-primary/20 pb-2">Hold Times</h4>
+            <div className="space-y-2">
+              {recordedHolds.map((time, index) => (
+                <div key={index} className="flex justify-between items-center text-sm gap-4">
+                  <span className="opacity-60">Round {index + 1}</span>
+                  <span className="font-mono text-primary-light">{time}s</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     );
   };
