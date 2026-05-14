@@ -18,7 +18,7 @@ export class AudioSynth {
     this.gainNode = this.ctx.createGain();
 
     if (type === "beneath-surface" || type === "binaural-6hz") {
-      const fileName = type === "beneath-surface" ? "/beneath_the_surface.mp3" : "/binaural-6hz_15_minute.wav";
+      const fileName = type === "beneath-surface" ? "/beneath_the_surface.mp3" : "/binaural-6hz_15_minute.mp3";
       fetch(fileName)
         .then(response => response.arrayBuffer())
         .then(data => this.ctx!.decodeAudioData(data))
