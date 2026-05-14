@@ -1,4 +1,4 @@
-export type SoundType = "none" | "brown-noise" | "deep-space" | "rain" | "ocean" | "beneath-surface";
+export type SoundType = "none" | "brown-noise" | "deep-space" | "rain" | "ocean" | "beneath-surface" | "binaural-6hz";
 
 export class AudioSynth {
   ctx: AudioContext | null = null;
@@ -17,8 +17,9 @@ export class AudioSynth {
     this.ctx = new AudioContextClass();
     this.gainNode = this.ctx.createGain();
 
-    if (type === "beneath-surface") {
-      fetch("/beneath_the_surface.mp3")
+    if (type === "beneath-surface" || type === "binaural-6hz") {
+      const fileName = type === "beneath-surface" ? "/beneath_the_surface.mp3" : "/binaural-6hz_15_minute.wav";
+      fetch(fileName)
         .then(response => response.arrayBuffer())
         .then(data => this.ctx!.decodeAudioData(data))
         .then(buffer => {
@@ -33,7 +34,7 @@ export class AudioSynth {
           
           this.noiseNode.start(0);
         })
-        .catch(e => console.error("Failed to load beneath surface audio:", e));
+        .catch(e => console.error(`Failed to load ${type} audio:`, e));
       return; // Exit here since we use fetch async
     }
 

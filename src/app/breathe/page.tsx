@@ -84,6 +84,16 @@ const PROTOCOLS: Protocol[] = [
       { phase: "exhale" as BreathingPhase, durationMs: 4000, instruction: "Exhale normally and relax" },
     ],
   },
+  {
+    id: "resonant-frequency",
+    name: "Resonant-Frequency (HRV)",
+    description: "Deep mental reset & autonomic training (5.5s In / 5.5s Out).",
+    advanced: true,
+    phases: [
+      { phase: "inhale", durationMs: 5500, instruction: "Inhale smoothly" },
+      { phase: "exhale", durationMs: 5500, instruction: "Exhale smoothly" },
+    ],
+  },
 ];
 
 // --- MAIN PAGE ---
@@ -97,6 +107,7 @@ export default function Home() {
   const [theme, setTheme] = useState<string>("calm-blue");
   const [soundType, setSoundType] = useState<SoundType>("none");
   const [customProtocols, setCustomProtocols] = useState<Protocol[]>([]);
+  const [protocolToEdit, setProtocolToEdit] = useState<Protocol | undefined>(undefined);
   const audioSynthRef = useRef<AudioSynth | null>(null);
 
   // Session tracking
@@ -230,10 +241,30 @@ export default function Home() {
   };
 
   const handleSaveCustom = (protocol: Protocol) => {
-    const updated = [...customProtocols, protocol];
+    const updated = [...customProtocols];
+    const existingIndex = updated.findIndex(p => p.id === protocol.id);
+    if (existingIndex >= 0) {
+      updated[existingIndex] = protocol;
+    } else {
+      updated.push(protocol);
+    }
     setCustomProtocols(updated);
     localStorage.setItem("breathingLabsCustom", JSON.stringify(updated));
     setView("selection");
+    setProtocolToEdit(undefined);
+  };
+
+  const handleEditCustom = (protocol: Protocol, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setProtocolToEdit(protocol);
+    setView("custom");
+  };
+
+  const handleDeleteCustom = (protocolId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = customProtocols.filter(p => p.id !== protocolId);
+    setCustomProtocols(updated);
+    localStorage.setItem("breathingLabsCustom", JSON.stringify(updated));
   };
 
   // --- TIMER LOGIC ---
@@ -327,39 +358,64 @@ export default function Home() {
             <option value="ocean">Ocean Waves</option>
             <option value="rain">Heavy Rain</option>
             <option value="beneath-surface">Beneath the Surface</option>
+            <option value="binaural-6hz">Binaural (6Hz)</option>
           </select>
         </div>
       </div>
 
       <div className="flex justify-between items-end mb-4 px-2">
         <h3 className="text-xl font-medium opacity-80">Library</h3>
-        <Button variant="ghost" onClick={() => setView("custom")} className="text-sm border border-primary/30">
+        <Button variant="ghost" onClick={() => { setProtocolToEdit(undefined); setView("custom"); }} className="text-sm border border-primary/30">
           + Custom Protocol
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {[...PROTOCOLS, ...customProtocols].map((protocol) => (
-          <Card 
-            key={protocol.id} 
-            interactive 
-            onClick={() => handleSelectProtocol(protocol)}
-            className="flex flex-col h-full items-start group"
-          >
-            <div className="flex justify-between items-start w-full mb-3">
-              <h3 className="text-xl font-medium text-primary group-hover:text-primary-light transition-colors">{protocol.name}</h3>
-              {protocol.advanced && (
-                <span className="bg-red-900/30 text-red-400 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider border border-red-500/20">
-                  Advanced
-                </span>
-              )}
-            </div>
-            <p className="opacity-80 text-sm mb-6 flex-grow">{protocol.description}</p>
-            <div className="w-full bg-primary/10 text-primary-light text-xs font-mono py-2 px-3 rounded-md mt-auto truncate" title={protocol.phases.map(p => `${p.phase}(${p.durationMs/1000}s)`).join(" → ")}>
-              {protocol.phases.map(p => `${p.phase}(${p.durationMs/1000}s)`).join(" → ")}
-            </div>
-          </Card>
-        ))}
+        {[...PROTOCOLS, ...customProtocols].map((protocol) => {
+          const isCustom = customProtocols.some(p => p.id === protocol.id);
+          return (
+            <Card 
+              key={protocol.id} 
+              interactive 
+              onClick={() => handleSelectProtocol(protocol)}
+              className="flex flex-col h-full items-start group relative"
+            >
+              <div className="flex justify-between items-start w-full mb-3">
+                <h3 className="text-xl font-medium text-primary group-hover:text-primary-light transition-colors">{protocol.name}</h3>
+                {protocol.advanced && (
+                  <span className="bg-red-900/30 text-red-400 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider border border-red-500/20">
+                    Advanced
+                  </span>
+                )}
+              </div>
+              <p className="opacity-80 text-sm mb-6 flex-grow">{protocol.description}</p>
+              
+              <div className="flex w-full gap-2 mt-auto">
+                <div className="flex-1 bg-primary/10 text-primary-light text-xs font-mono py-2 px-3 rounded-md truncate" title={protocol.phases.map(p => `${p.phase}(${p.durationMs/1000}s)`).join(" → ")}>
+                  {protocol.phases.map(p => `${p.phase}(${p.durationMs/1000}s)`).join(" → ")}
+                </div>
+                {isCustom && (
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button 
+                      onClick={(e) => handleEditCustom(protocol, e)}
+                      className="bg-black/40 hover:bg-primary/20 text-primary-light p-2 rounded-md"
+                      title="Edit"
+                    >
+                      ✎
+                    </button>
+                    <button 
+                      onClick={(e) => handleDeleteCustom(protocol.id, e)}
+                      className="bg-black/40 hover:bg-red-500/20 text-red-400 p-2 rounded-md"
+                      title="Delete"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
+            </Card>
+          );
+        })}
       </div>
       
       <div className="flex justify-center pt-8">
@@ -383,6 +439,7 @@ export default function Home() {
           <BreathingCircle 
             phase={isActive ? currentPhaseData.phase : "idle"} 
             durationMs={currentPhaseData.durationMs} 
+            triggerKey={currentPhaseIndex}
           />
         </div>
 
@@ -503,7 +560,7 @@ export default function Home() {
       <div className="w-full z-10">
         {view === "welcome" && renderWelcome()}
         {view === "dashboard" && <Dashboard onBack={() => setView("welcome")} />}
-        {view === "custom" && <CustomBuilder onBack={() => setView("selection")} onSave={handleSaveCustom} />}
+        {view === "custom" && <CustomBuilder onBack={() => { setView("selection"); setProtocolToEdit(undefined); }} onSave={handleSaveCustom} initialProtocol={protocolToEdit} />}
         {view === "selection" && renderSelection()}
         {view === "active" && renderActiveSession()}
         {view === "complete" && renderComplete()}
